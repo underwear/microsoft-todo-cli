@@ -45,7 +45,7 @@ def check_keys(keys):
         )
         print(
             "Instructions to getting your API client id and secret can be found here:\n{}".format(
-                "https://github.com/kiblee/tod0/blob/master/GET_KEY.md"
+                "https://github.com/underwear/microsoft-todo-cli/blob/main/GET_KEY.md"
             )
         )
         exit()

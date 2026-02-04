@@ -8,7 +8,7 @@ setup(
     author="kiblee",
     author_email="kiblee@pm.me",
     packages=find_packages(),
-    url="https://github.com/kiblee/tod0",
+    url="https://github.com/underwear/microsoft-todo-cli",
     license="LICENSE",
     description="A Terminal Client for Microsoft To-Do.",
     install_requires=[

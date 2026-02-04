@@ -3,7 +3,7 @@ tod0
 
 A Terminal Client for Microsoft To-Do.
 
-[![CircleCI](https://circleci.com/gh/kiblee/tod0.svg?style=svg&circle-token=7c223e0b25b7428107e841926315e74478cacb55)](https://circleci.com/gh/kiblee/tod0)
+[![CircleCI](https://circleci.com/gh/underwear/microsoft-todo-cli.svg?style=svg)](https://circleci.com/gh/underwear/microsoft-todo-cli)
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
 #### Microsoft To Do Command Line Interface
@@ -15,7 +15,7 @@ A Terminal Client for Microsoft To-Do.
 Installation
 ------------
 
-***Remember to [register for an API key](https://github.com/kiblee/tod0/tree/master/GET_KEY.md) before using `tod0`***
+***Remember to [register for an API key](https://github.com/underwear/microsoft-todo-cli/tree/main/GET_KEY.md) before using `tod0`***
 
 ### Install from PyPI
 
@@ -26,8 +26,8 @@ pip install tod0
 ### Install from source
 
 ```sh
-git clone https://github.com/kiblee/tod0.git
-cd tod0
+git clone https://github.com/underwear/microsoft-todo-cli.git
+cd microsoft-todo-cli
 python setup.py install
 ```
 

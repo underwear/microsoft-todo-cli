@@ -33,7 +33,7 @@ def test_url_in_task_name():
 
     # Test 1: Create task with URL using new --list flag
     print("\n2. Creating task with URL using --list flag...")
-    task_url = "https://github.com/kiblee/tod0/issues/70"
+    task_url = "https://example.com/path/to/resource"
     list_name, task_name = parse_task_path(task_url, list_name="test-list")
 
     print(f"   Parsed as: list='{list_name}', task='{task_name}'")
