@@ -98,13 +98,61 @@ def create_list(title: str):
     response.raise_for_status()
 
 
-# TODO No associated command
 def rename_list(old_title: str, new_title: str):
+    """Rename a list. Returns (list_id, new_title)."""
     list_id = get_list_id_by_name(old_title)
-    request_body = {"title": new_title}
+    request_body = {"displayName": new_title}
     session = get_oauth_session()
     response = session.patch(f"{BASE_URL}/{list_id}", json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return data.get("id", ""), data.get("displayName", "")
+    response.raise_for_status()
+
+
+def delete_list(list_name: str = None, list_id: str = None):
+    """Delete a list. Returns list_id."""
+    _require_list(list_name, list_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+
+    endpoint = f"{BASE_URL}/{list_id}"
+    session = get_oauth_session()
+    response = session.delete(endpoint)
+    if response.ok:
+        return list_id
+    response.raise_for_status()
+
+
+def move_task(
+    task_name: Union[str, int] = None,
+    task_id: str = None,
+    source_list: str = None,
+    source_list_id: str = None,
+    dest_list: str = None,
+    dest_list_id: str = None,
+):
+    """Move a task to a different list. Returns (task_id, task_title, dest_list_name)."""
+    _require_list(source_list, source_list_id)
+    _require_list(dest_list, dest_list_id)
+    _require_task(task_name, task_id)
+
+    if source_list_id is None:
+        source_list_id = get_list_id_by_name(source_list)
+    if dest_list_id is None:
+        dest_list_id = get_list_id_by_name(dest_list)
+    if task_id is None:
+        task_id = get_task_id_by_name(source_list, task_name)
+
+    endpoint = f"{BASE_URL}/{source_list_id}/tasks/{task_id}/move"
+    request_body = {"destinationTaskListId": dest_list_id}
+    session = get_oauth_session()
+    response = session.post(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return data.get("id", ""), data.get("title", ""), dest_list
+    response.raise_for_status()
 
 
 def get_tasks(
@@ -293,6 +341,9 @@ def update_task(
     reminder_datetime: datetime | None = None,
     important: bool | None = None,
     recurrence: dict | None = None,
+    clear_due: bool = False,
+    clear_reminder: bool = False,
+    clear_recurrence: bool = False,
 ):
     """Update a task. Returns (task_id, task_title)."""
     _require_list(list_name, list_id)
@@ -306,15 +357,22 @@ def update_task(
     request_body = {}
     if title is not None:
         request_body["title"] = title
-    if due_datetime is not None:
+    if clear_due:
+        request_body["dueDateTime"] = None
+    elif due_datetime is not None:
         request_body["dueDateTime"] = datetime_to_api_timestamp(due_datetime)
-    if reminder_datetime is not None:
+    if clear_reminder:
+        request_body["reminderDateTime"] = None
+        request_body["isReminderOn"] = False
+    elif reminder_datetime is not None:
         request_body["reminderDateTime"] = datetime_to_api_timestamp(reminder_datetime)
     if important is not None:
         request_body["importance"] = (
             TaskImportance.HIGH if important else TaskImportance.NORMAL
         )
-    if recurrence is not None:
+    if clear_recurrence:
+        request_body["recurrence"] = None
+    elif recurrence is not None:
         request_body["recurrence"] = recurrence
 
     if not request_body:

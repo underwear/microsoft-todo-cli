@@ -178,6 +178,100 @@ def newl(args):
     _output_result(args, result)
 
 
+def rename_list(args):
+    list_id, new_name = wrapper.rename_list(args.old_name, args.new_name)
+    result = {
+        "action": "renamed",
+        "id": list_id,
+        "old_name": args.old_name,
+        "name": new_name,
+        "message": f"Renamed list '{args.old_name}' to '{new_name}'",
+    }
+    _output_result(args, result)
+
+
+def rm_list(args):
+    use_json = getattr(args, "json", False)
+    skip_confirm = getattr(args, "yes", False)
+
+    list_name = args.list_name
+
+    if not skip_confirm:
+        confirm = input(f"Delete list '{list_name}' and all its tasks? [y/N]: ")
+        if confirm.lower() not in ("y", "yes"):
+            if not use_json:
+                print("Cancelled")
+            return
+
+    list_id = wrapper.delete_list(list_name=list_name)
+    result = {
+        "action": "removed",
+        "id": list_id,
+        "name": list_name,
+        "message": f"Removed list '{list_name}'",
+    }
+    _output_result(args, result)
+
+
+def move(args):
+    task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
+    use_json = getattr(args, "json", False)
+    source_list = getattr(args, "list", None) or "Tasks"
+    dest_list = args.dest_list
+
+    # If --id is provided, use it directly
+    if task_id:
+        returned_id, title, dest_name = wrapper.move_task(
+            task_id=task_id,
+            source_list=source_list,
+            dest_list=dest_list,
+        )
+        result = {
+            "action": "moved",
+            "id": returned_id,
+            "title": title,
+            "source_list": source_list,
+            "dest_list": dest_name,
+            "message": f"Moved task '{title}' to '{dest_name}'",
+        }
+    # If --index is provided, use it as explicit index
+    elif task_index is not None:
+        returned_id, title, dest_name = wrapper.move_task(
+            task_name=task_index,
+            source_list=source_list,
+            dest_list=dest_list,
+        )
+        result = {
+            "action": "moved",
+            "id": returned_id,
+            "title": title,
+            "source_list": source_list,
+            "dest_list": dest_name,
+            "message": f"Moved task '{title}' from '{source_list}' to '{dest_name}'",
+        }
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        returned_id, title, dest_name = wrapper.move_task(
+            task_name=try_parse_as_int(name),
+            source_list=task_list,
+            dest_list=dest_list,
+        )
+        result = {
+            "action": "moved",
+            "id": returned_id,
+            "title": title,
+            "source_list": task_list,
+            "dest_list": dest_name,
+            "message": f"Moved task '{title}' from '{task_list}' to '{dest_name}'",
+        }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
 def try_parse_as_int(input_str: str):
     try:
         return int(input_str)
@@ -364,7 +458,9 @@ def rm(args):
 
 def update(args):
     task_id = getattr(args, "task_id", None)
+    task_index = getattr(args, "task_index", None)
     use_json = getattr(args, "json", False)
+    list_name = getattr(args, "list", None) or "Tasks"
 
     due_datetime = None
     if args.due is not None:
@@ -376,17 +472,30 @@ def update(args):
 
     recurrence = parse_recurrence(args.recurrence)
 
+    # Handle importance: --important sets True, --no-important sets False, neither is None
+    important = None
+    if args.important:
+        important = True
+    elif getattr(args, "no_important", False):
+        important = False
+
+    clear_due = getattr(args, "clear_due", False)
+    clear_reminder = getattr(args, "clear_reminder", False)
+    clear_recurrence = getattr(args, "clear_recurrence", False)
+
     # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     if task_id:
-        list_name = getattr(args, "list", None) or "Tasks"
         returned_id, title = wrapper.update_task(
             list_name=list_name,
             task_id=task_id,
             title=args.title,
             due_datetime=due_datetime,
             reminder_datetime=reminder_datetime,
-            important=True if args.important else None,
+            important=important,
             recurrence=recurrence,
+            clear_due=clear_due,
+            clear_reminder=clear_reminder,
+            clear_recurrence=clear_recurrence,
         )
         result = {
             "action": "updated",
@@ -394,6 +503,27 @@ def update(args):
             "title": title,
             "list": list_name,
             "message": f"Updated task '{title}'",
+        }
+    # If --index is provided, use it as explicit index
+    elif task_index is not None:
+        returned_id, title = wrapper.update_task(
+            list_name=list_name,
+            task_name=task_index,
+            title=args.title,
+            due_datetime=due_datetime,
+            reminder_datetime=reminder_datetime,
+            important=important,
+            recurrence=recurrence,
+            clear_due=clear_due,
+            clear_reminder=clear_reminder,
+            clear_recurrence=clear_recurrence,
+        )
+        result = {
+            "action": "updated",
+            "id": returned_id,
+            "title": title,
+            "list": list_name,
+            "message": f"Updated task '{title}' in '{list_name}'",
         }
     else:
         task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
@@ -403,8 +533,11 @@ def update(args):
             title=args.title,
             due_datetime=due_datetime,
             reminder_datetime=reminder_datetime,
-            important=True if args.important else None,
+            important=important,
             recurrence=recurrence,
+            clear_due=clear_due,
+            clear_reminder=clear_reminder,
+            clear_recurrence=clear_recurrence,
         )
         result = {
             "action": "updated",
@@ -734,6 +867,16 @@ def _add_id_flag(subparser):
     )
 
 
+def _add_index_flag(subparser):
+    """Add --index flag for explicit task index (avoids auto-detection)."""
+    subparser.add_argument(
+        "--index",
+        dest="task_index",
+        type=int,
+        help="Task index (0-based, as shown in 'tasks' output). Explicit alternative to positional arg.",
+    )
+
+
 def setup_parser():
     parser = argparse.ArgumentParser(
         prog="todo",
@@ -859,6 +1002,32 @@ def setup_parser():
         _add_json_flag(subparser)
         subparser.set_defaults(func=newl)
 
+    # 'rename-list' command
+    subparser = subparsers.add_parser("rename-list", help="Rename a list")
+    subparser.add_argument("old_name", help="Current name of the list")
+    subparser.add_argument("new_name", help="New name for the list")
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=rename_list)
+
+    # 'rm-list' command
+    subparser = subparsers.add_parser("rm-list", help="Remove a list and all its tasks")
+    subparser.add_argument("list_name", help="Name of the list to remove")
+    subparser.add_argument(
+        "-y", "--yes", action="store_true", help="Skip confirmation prompt"
+    )
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=rm_list)
+
+    # 'move' command
+    subparser = subparsers.add_parser("move", help="Move a task to a different list")
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument("dest_list", help="Destination list name")
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_index_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=move)
+
     # 'complete' command and 'c' alias
     for cmd_name in ["complete", "c"]:
         subparser = subparsers.add_parser(
@@ -926,10 +1095,21 @@ def setup_parser():
         "-I", "--important", action="store_true", help="Mark as important"
     )
     subparser.add_argument(
+        "--no-important", action="store_true", help="Remove important flag"
+    )
+    subparser.add_argument(
         "-R", "--recurrence", help=helptext_recurrence, metavar="PATTERN"
+    )
+    subparser.add_argument("--clear-due", action="store_true", help="Remove due date")
+    subparser.add_argument(
+        "--clear-reminder", action="store_true", help="Remove reminder"
+    )
+    subparser.add_argument(
+        "--clear-recurrence", action="store_true", help="Remove recurrence"
     )
     _add_list_flag(subparser)
     _add_id_flag(subparser)
+    _add_index_flag(subparser)
     _add_json_flag(subparser)
     subparser.set_defaults(func=update)
 

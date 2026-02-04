@@ -1,4 +1,4 @@
-# todo
+# microsoft-todo-cli
 
 Fast, minimal command-line client for Microsoft To-Do
 
@@ -21,18 +21,9 @@ $ todo complete 0
 Completed task 'Buy groceries' in 'Tasks'
 ```
 
-## Why todo?
-
-| | |
-|---|---|
-| **Natural dates** | `tomorrow`, `1h30m`, `9:30am`, `friday`, `weekly:mon,wed,fri` |
-| **Scriptable** | JSON output, stable task IDs, proper exit codes |
-| **Fast** | No interactive UI, minimal dependencies, instant results |
-| **Complete** | Tasks, lists, subtasks, recurrence, reminders, filters |
-
 ## Install
 
-**Requirements:** Python 3.8+
+**Requirements:** Python 3.10+
 
 ```bash
 pip install microsoft-todo-cli
@@ -108,6 +99,17 @@ todo rm-step "Task" 0                 # Remove by index
 ```bash
 todo lists                        # Show all lists
 todo new-list "Project X"         # Create list
+todo rename-list "Old" "New"      # Rename list
+todo rm-list "Project X"          # Delete list (asks confirmation)
+todo rm-list "Project X" -y       # Delete list (no confirmation)
+```
+
+### Moving Tasks
+
+```bash
+todo move "Task" "Work"           # Move task to "Work" list
+todo move "Shopping/Milk" "Home"  # Move from Shopping to Home
+todo move --index 0 "Work"        # Move task #0 to Work
 ```
 
 ### Date & Time Formats
