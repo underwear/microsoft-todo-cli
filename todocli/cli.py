@@ -4,6 +4,8 @@ import shlex
 import sys
 from datetime import datetime
 
+import requests
+
 import todocli.graphapi.wrapper as wrapper
 from todocli.utils.update_checker import check as update_checker
 from todocli.utils.datetime_util import (
@@ -988,8 +990,9 @@ def main():
                     interactive = True
                     first_run = False
 
-            except argparse.ArgumentError:
-                pass
+            except argparse.ArgumentError as e:
+                print(f"Argument error: {e}")
+                error_occurred = True
             except wrapper.TaskNotFoundByName as e:
                 print(e.message)
                 error_occurred = True
@@ -1014,6 +1017,12 @@ def main():
             except InvalidRecurrenceExpression as e:
                 print(e.message)
                 error_occurred = True
+            except ValueError as e:
+                print(f"Error: {e}")
+                error_occurred = True
+            except requests.RequestException as e:
+                print(f"Network error: {e}")
+                error_occurred = True
             finally:
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -1032,7 +1041,7 @@ def main():
 
     except KeyboardInterrupt:
         print("\n")
-        exit(0)
+        sys.exit(0)
 
 
 if __name__ == "__main__":

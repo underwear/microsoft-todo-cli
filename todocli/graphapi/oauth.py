@@ -1,6 +1,7 @@
 # Oauth settings
+import json
 import os
-import pickle
+import sys
 import time
 
 import yaml
@@ -34,10 +35,10 @@ if not os.path.isdir(config_dir):
 
 
 def check_keys(keys):
-    client_id = keys["client_id"]
-    client_secret = keys["client_secret"]
+    client_id = keys.get("client_id", "")
+    client_secret = keys.get("client_secret", "")
 
-    if client_id == "" or client_secret == "":
+    if not client_id or not client_secret:
         print(
             "Please enter your client id and secret in {}".format(
                 os.path.join(config_dir, "keys.yml")
@@ -45,10 +46,10 @@ def check_keys(keys):
         )
         print(
             "Instructions to getting your API client id and secret can be found here:\n{}".format(
-                "https://github.com/underwear/microsoft-todo-cli/blob/main/GET_KEY.md"
+                "https://github.com/underwear/microsoft-todo-cli/blob/main/docs/setup-api.md"
             )
         )
-        exit()
+        sys.exit(1)
 
 
 # Check for api keys
@@ -62,26 +63,32 @@ if not os.path.isfile(keys_path):
 else:
     # Load api keys
     with open(keys_path) as f:
-        keys = yaml.load(f, yaml.SafeLoader)
+        keys = yaml.load(f, yaml.SafeLoader) or {}
         check_keys(keys)
 
 client_id = keys["client_id"]
 client_secret = keys["client_secret"]
 
+TOKEN_FILE = os.path.join(config_dir, "token.json")
+
 
 def get_token():
-    try:
-        # Try to load token from local
-        with open(os.path.join(config_dir, "token.pkl"), "rb") as f:
-            token = pickle.load(f)
+    token = None
 
-        token = refresh_token(token)
+    # Try to load token from local
+    if os.path.isfile(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE, "r") as f:
+                token = json.load(f)
+            token = refresh_token(token)
+        except (json.JSONDecodeError, KeyError, OSError):
+            token = None
 
-    except Exception:
+    if token is None:
         # Authorize user to get token
         outlook = OAuth2Session(client_id, scope=scope, redirect_uri=redirect)
 
-        # Redirect  the user owner to the OAuth provider
+        # Redirect the user owner to the OAuth provider
         authorization_url, state = outlook.authorization_url(authorize_url)
         print("Please go here and authorize:\n", authorization_url)
 
@@ -100,8 +107,8 @@ def get_token():
 
 
 def store_token(token):
-    with open(os.path.join(config_dir, "token.pkl"), "wb") as f:
-        pickle.dump(token, f)
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(token, f)
 
 
 def refresh_token(token):

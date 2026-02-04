@@ -20,6 +20,24 @@ BASE_URL = f"{BASE_API}{BASE_RELATE_URL}"
 BATCH_URL = f"{BASE_API}/$batch"
 
 
+def _require_list(list_name, list_id):
+    """Validate that list_name or list_id is provided."""
+    if list_name is None and list_id is None:
+        raise ValueError("You must provide list_name or list_id")
+
+
+def _require_task(task_name, task_id):
+    """Validate that task_name or task_id is provided."""
+    if task_name is None and task_id is None:
+        raise ValueError("You must provide task_name or task_id")
+
+
+def _require_step(step_name):
+    """Validate that step_name is provided."""
+    if step_name is None:
+        raise ValueError("You must provide step_name")
+
+
 class ListNotFound(Exception):
     def __init__(self, list_name):
         self.message = "List with name '{}' could not be found".format(list_name)
@@ -105,9 +123,7 @@ def get_tasks(
         include_completed: If True, include completed tasks
         only_completed: If True, return only completed tasks
     """
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
+    _require_list(list_name, list_id)
 
     # For compatibility with cli
     if list_id is None:
@@ -139,9 +155,7 @@ def create_task(
     important: bool = False,
     recurrence: dict | None = None,
 ):
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
+    _require_list(list_name, list_id)
 
     # For compatibility with cli
     if list_id is None:
@@ -174,12 +188,8 @@ def complete_task(
     task_id: str = None,
 ):
     """Mark a task as completed. Returns (task_id, task_title)."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     # For compatibility with cli
     if list_id is None:
@@ -207,12 +217,8 @@ def uncomplete_task(
     task_id: str = None,
 ):
     """Mark a completed task as not completed. Returns (task_id, task_title)."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -261,12 +267,8 @@ def remove_task(
     task_id: str = None,
 ):
     """Delete a task. Returns task_id."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -293,12 +295,8 @@ def update_task(
     recurrence: dict | None = None,
 ):
     """Update a task. Returns (task_id, task_title)."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -402,12 +400,8 @@ def get_task(
     task_id: str = None,
 ):
     """Fetch a single task with all details."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -428,12 +422,8 @@ def get_checklist_items(
     list_id: str = None,
     task_id: str = None,
 ):
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -497,12 +487,8 @@ def create_checklist_item(
     list_id: str = None,
     task_id: str = None,
 ):
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -526,13 +512,9 @@ def complete_checklist_item(
     list_id: str = None,
     task_id: str = None,
 ):
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
-    assert step_name is not None, "You must provide step_name"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+    _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -560,13 +542,9 @@ def uncomplete_checklist_item(
     task_id: str = None,
 ):
     """Mark a checked step as unchecked."""
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
-    assert step_name is not None, "You must provide step_name"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+    _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
@@ -593,13 +571,9 @@ def delete_checklist_item(
     list_id: str = None,
     task_id: str = None,
 ):
-    assert (list_name is not None) or (
-        list_id is not None
-    ), "You must provide list_name or list_id"
-    assert (task_name is not None) or (
-        task_id is not None
-    ), "You must provide task_name or task_id"
-    assert step_name is not None, "You must provide step_name"
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+    _require_step(step_name)
 
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
