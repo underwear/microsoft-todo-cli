@@ -101,7 +101,7 @@ def new(args):
 
     recurrence = parse_recurrence(args.recurrence)
 
-    wrapper.create_task(
+    task_id = wrapper.create_task(
         name,
         list_name=task_list,
         reminder_datetime=reminder_datetime,
@@ -109,7 +109,19 @@ def new(args):
         important=args.important,
         recurrence=recurrence,
     )
-    print(f"Created task '{name}' in '{task_list}'")
+
+    steps = getattr(args, "step", []) or []
+    if steps:
+        list_id = wrapper.get_list_id_by_name(task_list)
+        for step_name in steps:
+            wrapper.create_checklist_item(
+                step_name, list_id=list_id, task_id=task_id
+            )
+
+    msg = f"Created task '{name}' in '{task_list}'"
+    if steps:
+        msg += f" with {len(steps)} step(s)"
+    print(msg)
 
 
 def newl(args):
@@ -263,6 +275,13 @@ def setup_parser():
     subparser.add_argument("-d", "--due")
     subparser.add_argument("-I", "--important", action="store_true")
     subparser.add_argument("-R", "--recurrence")
+    subparser.add_argument(
+        "-S",
+        "--step",
+        action="append",
+        default=[],
+        help="Add a step (checklist item); can be repeated",
+    )
     subparser.add_argument(
         "-l",
         "--list",

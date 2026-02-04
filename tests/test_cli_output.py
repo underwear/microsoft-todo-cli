@@ -32,13 +32,30 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_new_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.create_task.return_value = True
+        mock_wrapper.create_task.return_value = "task-id-123"
         args = _make_args(task_name="buy milk")
 
         with patch("sys.stdout", new_callable=StringIO) as out:
             new(args)
             self.assertIn("Created task", out.getvalue())
             self.assertIn("buy milk", out.getvalue())
+
+    @patch("todocli.cli.wrapper")
+    def test_new_with_steps_prints_confirmation(self, mock_wrapper):
+        mock_wrapper.create_task.return_value = "task-id-123"
+        mock_wrapper.get_list_id_by_name.return_value = "list-id"
+        mock_wrapper.create_checklist_item.return_value = True
+        args = _make_args(task_name="buy groceries", step=["milk", "eggs"])
+
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            new(args)
+            output = out.getvalue()
+            self.assertIn("Created task", output)
+            self.assertIn("buy groceries", output)
+            self.assertIn("2 step(s)", output)
+
+        # Verify steps were created
+        self.assertEqual(mock_wrapper.create_checklist_item.call_count, 2)
 
     @patch("todocli.cli.wrapper")
     def test_newl_prints_confirmation(self, mock_wrapper):

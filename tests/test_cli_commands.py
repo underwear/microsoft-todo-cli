@@ -112,6 +112,22 @@ class TestCLIArgumentParsing(unittest.TestCase):
         args = self.parser.parse_args(["new", "buy milk"])
         self.assertIsNone(args.recurrence)
 
+    def test_new_command_with_step_flag(self):
+        """Test 'new' command with -S flag (repeatable)"""
+        args = self.parser.parse_args(["new", "-S", "milk", "-S", "eggs", "buy groceries"])
+        self.assertEqual(args.task_name, "buy groceries")
+        self.assertEqual(args.step, ["milk", "eggs"])
+
+    def test_new_command_with_step_long_flag(self):
+        """Test 'new' command with --step flag"""
+        args = self.parser.parse_args(["new", "--step", "milk", "buy groceries"])
+        self.assertEqual(args.step, ["milk"])
+
+    def test_new_command_without_steps(self):
+        """Test 'new' command defaults step to empty list"""
+        args = self.parser.parse_args(["new", "buy milk"])
+        self.assertEqual(args.step, [])
+
     def test_new_command_with_all_flags(self):
         """Test 'new' command with all flags"""
         args = self.parser.parse_args(

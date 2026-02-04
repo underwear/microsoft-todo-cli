@@ -134,7 +134,10 @@ def create_task(
     }
     session = get_oauth_session()
     response = session.post(endpoint, json=request_body)
-    return True if response.ok else response.raise_for_status()
+    if response.ok:
+        return json.loads(response.content.decode())["id"]
+    else:
+        response.raise_for_status()
 
 
 def complete_task(
