@@ -42,6 +42,8 @@ def _make_args(**kwargs):
         args.json = False
     if "task_id" not in kwargs:
         args.task_id = None
+    if "step_id" not in kwargs:
+        args.step_id = None
     return args
 
 
@@ -95,7 +97,7 @@ class TestConfirmationOutput(unittest.TestCase):
 
     @patch("todocli.cli.wrapper")
     def test_rm_prints_confirmation(self, mock_wrapper):
-        mock_wrapper.remove_task.return_value = "task-id-123"
+        mock_wrapper.remove_task.return_value = ("task-id-123", "buy milk")
         args = _make_args(task_name="Tasks/buy milk", yes=True)
 
         with patch("sys.stdout", new_callable=StringIO) as out:

@@ -231,65 +231,6 @@ def rm_list(args):
     _output_result(args, result)
 
 
-def move(args):
-    task_id = getattr(args, "task_id", None)
-    task_index = getattr(args, "task_index", None)
-    use_json = getattr(args, "json", False)
-    source_list = getattr(args, "list", None) or "Tasks"
-    dest_list = args.dest_list
-
-    # If --id is provided, use it directly
-    if task_id:
-        returned_id, title, dest_name = wrapper.move_task(
-            task_id=task_id,
-            source_list=source_list,
-            dest_list=dest_list,
-        )
-        result = {
-            "action": "moved",
-            "id": returned_id,
-            "title": title,
-            "source_list": source_list,
-            "dest_list": dest_name,
-            "message": f"Moved task '{title}' to '{dest_name}'",
-        }
-    # If --index is provided, use it as explicit index
-    elif task_index is not None:
-        returned_id, title, dest_name = wrapper.move_task(
-            task_name=task_index,
-            source_list=source_list,
-            dest_list=dest_list,
-        )
-        result = {
-            "action": "moved",
-            "id": returned_id,
-            "title": title,
-            "source_list": source_list,
-            "dest_list": dest_name,
-            "message": f"Moved task '{title}' from '{source_list}' to '{dest_name}'",
-        }
-    else:
-        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
-        returned_id, title, dest_name = wrapper.move_task(
-            task_name=try_parse_as_int(name),
-            source_list=task_list,
-            dest_list=dest_list,
-        )
-        result = {
-            "action": "moved",
-            "id": returned_id,
-            "title": title,
-            "source_list": task_list,
-            "dest_list": dest_name,
-            "message": f"Moved task '{title}' from '{task_list}' to '{dest_name}'",
-        }
-
-    if use_json:
-        print(json.dumps(result, indent=2))
-    else:
-        print(result["message"])
-
-
 def try_parse_as_int(input_str: str):
     try:
         return int(input_str)
@@ -451,13 +392,14 @@ def rm(args):
                 }
             )
         else:
-            returned_id = wrapper.remove_task(list_name=list_name, task_id=task_id)
+            returned_id, title = wrapper.remove_task(list_name=list_name, task_id=task_id)
             results.append(
                 {
                     "action": "removed",
                     "id": returned_id,
+                    "title": title,
                     "list": list_name,
-                    "message": f"Removed task (id: {returned_id[:8]}...)",
+                    "message": f"Removed task '{title}' from '{list_name}'",
                 }
             )
     # If --index is provided, use it as explicit index
@@ -476,16 +418,16 @@ def rm(args):
                 }
             )
         else:
-            returned_id = wrapper.remove_task(
+            returned_id, title = wrapper.remove_task(
                 list_name=list_name, task_name=task_index
             )
             results.append(
                 {
                     "action": "removed",
                     "id": returned_id,
-                    "index": task_index,
+                    "title": title,
                     "list": list_name,
-                    "message": f"Removed task #{task_index} from '{list_name}'",
+                    "message": f"Removed task '{title}' from '{list_name}'",
                 }
             )
     else:
@@ -511,16 +453,16 @@ def rm(args):
                 )
                 continue
 
-            returned_id = wrapper.remove_task(
+            returned_id, title = wrapper.remove_task(
                 list_name=task_list, task_name=try_parse_as_int(name)
             )
             results.append(
                 {
                     "action": "removed",
                     "id": returned_id,
-                    "title": str(name),
+                    "title": title,
                     "list": task_list,
-                    "message": f"Removed task '{name}' from '{task_list}'",
+                    "message": f"Removed task '{title}' from '{task_list}'",
                 }
             )
 
@@ -727,10 +669,12 @@ def complete_step(args):
     # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     elif task_id:
         list_name = getattr(args, "list", None) or "Tasks"
+        # When --id is used, step comes as first positional arg (task_name)
+        step_arg = args.step_name if args.step_name else args.task_name
         returned_step_id, step_name = wrapper.complete_checklist_item(
             list_name=list_name,
             task_id=task_id,
-            step_name=try_parse_as_int(args.step_name),
+            step_name=try_parse_as_int(step_arg),
         )
         result = {
             "action": "completed",
@@ -790,10 +734,12 @@ def uncomplete_step(args):
     # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     elif task_id:
         list_name = getattr(args, "list", None) or "Tasks"
+        # When --id is used, step comes as first positional arg (task_name)
+        step_arg = args.step_name if args.step_name else args.task_name
         returned_step_id, step_name = wrapper.uncomplete_checklist_item(
             list_name=list_name,
             task_id=task_id,
-            step_name=try_parse_as_int(args.step_name),
+            step_name=try_parse_as_int(step_arg),
         )
         result = {
             "action": "uncompleted",
@@ -852,10 +798,12 @@ def rm_step(args):
     # If --id is provided, use it directly (-l/--list defaults to "Tasks")
     elif task_id:
         list_name = getattr(args, "list", None) or "Tasks"
+        # When --id is used, step comes as first positional arg (task_name)
+        step_arg = args.step_name if args.step_name else args.task_name
         returned_step_id = wrapper.delete_checklist_item(
             list_name=list_name,
             task_id=task_id,
-            step_name=try_parse_as_int(args.step_name),
+            step_name=try_parse_as_int(step_arg),
         )
         result = {
             "action": "removed",
@@ -1161,16 +1109,6 @@ def setup_parser():
     )
     _add_json_flag(subparser)
     subparser.set_defaults(func=rm_list)
-
-    # 'move' command
-    subparser = subparsers.add_parser("move", help="Move a task to a different list")
-    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
-    subparser.add_argument("dest_list", help="Destination list name")
-    _add_list_flag(subparser)
-    _add_id_flag(subparser)
-    _add_index_flag(subparser)
-    _add_json_flag(subparser)
-    subparser.set_defaults(func=move)
 
     # 'complete' command and 'c' alias
     for cmd_name in ["complete", "c"]:

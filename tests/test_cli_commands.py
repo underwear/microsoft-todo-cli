@@ -293,15 +293,19 @@ class TestCLIArgumentParsing(unittest.TestCase):
 
     def test_complete_step_with_id_flag(self):
         """Test 'complete-step' command with --id flag"""
+        # When --id is used, the step arg goes into task_name (first positional)
+        # CLI code handles this by using task_name as step when task_id is set
         args = self.parser.parse_args(["complete-step", "--id", "AAMkABC123", "0"])
         self.assertEqual(args.task_id, "AAMkABC123")
-        self.assertEqual(args.step_name, "0")
+        self.assertEqual(args.task_name, "0")
 
     def test_rm_step_with_id_flag(self):
         """Test 'rm-step' command with --id flag"""
+        # When --id is used, the step arg goes into task_name (first positional)
+        # CLI code handles this by using task_name as step when task_id is set
         args = self.parser.parse_args(["rm-step", "--id", "AAMkABC123", "0"])
         self.assertEqual(args.task_id, "AAMkABC123")
-        self.assertEqual(args.step_name, "0")
+        self.assertEqual(args.task_name, "0")
 
     def test_tasks_all_flag(self):
         """Test 'tasks' command with --all flag"""
@@ -331,9 +335,11 @@ class TestCLIArgumentParsing(unittest.TestCase):
 
     def test_uncomplete_step_with_id_flag(self):
         """Test 'uncomplete-step' command with --id flag"""
+        # When --id is used, the step arg goes into task_name (first positional)
+        # CLI code handles this by using task_name as step when task_id is set
         args = self.parser.parse_args(["uncomplete-step", "--id", "AAMkABC123", "0"])
         self.assertEqual(args.task_id, "AAMkABC123")
-        self.assertEqual(args.step_name, "0")
+        self.assertEqual(args.task_name, "0")
 
 
 class TestParseTaskPath(unittest.TestCase):

@@ -7,7 +7,8 @@ class TimeExpressionNotRecognized(Exception):
     def __init__(self, time_str):
         self.message = (
             f"Time expression could not be parsed: {time_str}\n"
-            f"Supported date formats: DD.MM.YYYY, YYYY-MM-DD, MM/DD/YYYY"
+            f"Supported formats: 1h, 30m, 9am, 5:30pm, 17:00, tomorrow, monday, mon, "
+            f"DD.MM.YYYY, YYYY-MM-DD, MM/DD/YYYY"
         )
         super(TimeExpressionNotRecognized, self).__init__(self.message)
 
@@ -98,6 +99,44 @@ def parse_datetime(datetime_str: str):
             dt = datetime.now()
             return add_day_if_past(
                 dt.replace(hour=18, minute=0, second=0, microsecond=0)
+            )
+
+        # Day names (monday, mon, tuesday, tue, etc.)
+        day_names = {
+            "monday": 0, "mon": 0,
+            "tuesday": 1, "tue": 1,
+            "wednesday": 2, "wed": 2,
+            "thursday": 3, "thu": 3,
+            "friday": 4, "fri": 4,
+            "saturday": 5, "sat": 5,
+            "sunday": 6, "sun": 6,
+        }
+        if datetime_str.lower() in day_names:
+            target_weekday = day_names[datetime_str.lower()]
+            dt = datetime.now()
+            current_weekday = dt.weekday()
+            days_ahead = target_weekday - current_weekday
+            if days_ahead <= 0:  # Target day already happened this week
+                days_ahead += 7
+            return (dt + timedelta(days=days_ahead)).replace(
+                hour=7, minute=0, second=0, microsecond=0
+            )
+
+        # Time without space: 9am, 5pm, 5:30pm, 10:30am
+        if match := re.match(r"^(\d{1,2})(?::(\d{2}))?(am|pm)$", datetime_str, re.IGNORECASE):
+            hour = int(match.group(1))
+            minute = int(match.group(2)) if match.group(2) else 0
+            is_pm = match.group(3).lower() == "pm"
+
+            if is_pm and hour != 12:
+                hour += 12
+            elif not is_pm and hour == 12:
+                hour = 0
+
+            return add_day_if_past(
+                datetime.now().replace(
+                    hour=hour, minute=minute, second=0, microsecond=0
+                )
             )
 
         if re.match(r"([0-9]{1,2}:[0-9]{2} (am|pm))", datetime_str, re.IGNORECASE):

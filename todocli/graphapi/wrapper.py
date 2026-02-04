@@ -125,36 +125,6 @@ def delete_list(list_name: str = None, list_id: str = None):
     response.raise_for_status()
 
 
-def move_task(
-    task_name: Union[str, int] = None,
-    task_id: str = None,
-    source_list: str = None,
-    source_list_id: str = None,
-    dest_list: str = None,
-    dest_list_id: str = None,
-):
-    """Move a task to a different list. Returns (task_id, task_title, dest_list_name)."""
-    _require_list(source_list, source_list_id)
-    _require_list(dest_list, dest_list_id)
-    _require_task(task_name, task_id)
-
-    if source_list_id is None:
-        source_list_id = get_list_id_by_name(source_list)
-    if dest_list_id is None:
-        dest_list_id = get_list_id_by_name(dest_list)
-    if task_id is None:
-        task_id = get_task_id_by_name(source_list, task_name)
-
-    endpoint = f"{BASE_URL}/{source_list_id}/tasks/{task_id}/move"
-    request_body = {"destinationTaskListId": dest_list_id}
-    session = get_oauth_session()
-    response = session.post(endpoint, json=request_body)
-    if response.ok:
-        data = json.loads(response.content.decode())
-        return data.get("id", ""), data.get("title", ""), dest_list
-    response.raise_for_status()
-
-
 def get_tasks(
     list_name: str = None,
     list_id: str = None,
@@ -314,7 +284,7 @@ def remove_task(
     list_id: str = None,
     task_id: str = None,
 ):
-    """Delete a task. Returns task_id."""
+    """Delete a task. Returns (task_id, task_title)."""
     _require_list(list_name, list_id)
     _require_task(task_name, task_id)
 
@@ -323,11 +293,15 @@ def remove_task(
     if task_id is None:
         task_id = get_task_id_by_name(list_name, task_name)
 
+    # Fetch task title before deletion
+    task = get_task(list_id=list_id, task_id=task_id)
+    task_title = task.title
+
     endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
     session = get_oauth_session()
     response = session.delete(endpoint)
     if response.ok:
-        return task_id
+        return task_id, task_title
     response.raise_for_status()
 
 

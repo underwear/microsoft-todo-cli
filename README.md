@@ -104,14 +104,6 @@ todo rm-list "Project X"          # Delete list (asks confirmation)
 todo rm-list "Project X" -y       # Delete list (no confirmation)
 ```
 
-### Moving Tasks
-
-```bash
-todo move "Task" "Work"           # Move task to "Work" list
-todo move "Milk" "Home" -l Shopping  # Move from Shopping to Home
-todo move --index 0 "Work"        # Move task #0 to Work
-```
-
 ### Date & Time Formats
 
 | Type | Examples |
