@@ -1,3 +1,6 @@
+v1.2.0, 2026-02-05
+  - Added -N/--note flag to 'new' command for creating tasks with notes
+
 v1.1.0, 2026-02-05
   - Added note support: note, show-note, clear-note commands
   - Added sn, cn aliases for show-note and clear-note

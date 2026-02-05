@@ -78,6 +78,7 @@ todo new "Task" -I                # Important
 todo new "Task" -R daily          # Recurring
 todo new "Task" -R weekly:mon,fri # Recurring on specific days
 todo new "Task" -S "Step 1" -S "Step 2"  # With subtasks
+todo new "Task" -N "Note content"     # With note
 
 # View single task
 todo show "Task"                  # Show task details

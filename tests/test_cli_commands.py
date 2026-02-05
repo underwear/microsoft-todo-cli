@@ -129,6 +129,22 @@ class TestCLIArgumentParsing(unittest.TestCase):
         args = self.parser.parse_args(["new", "buy milk"])
         self.assertEqual(args.step, [])
 
+    def test_new_command_with_note_flag(self):
+        """Test 'new' command with -N flag"""
+        args = self.parser.parse_args(["new", "-N", "Remember to check prices", "buy milk"])
+        self.assertEqual(args.task_name, "buy milk")
+        self.assertEqual(args.note, "Remember to check prices")
+
+    def test_new_command_with_note_long_flag(self):
+        """Test 'new' command with --note flag"""
+        args = self.parser.parse_args(["new", "--note", "My note", "buy milk"])
+        self.assertEqual(args.note, "My note")
+
+    def test_new_command_without_note(self):
+        """Test 'new' command defaults note to None"""
+        args = self.parser.parse_args(["new", "buy milk"])
+        self.assertIsNone(args.note)
+
     def test_new_command_with_all_flags(self):
         """Test 'new' command with all flags"""
         args = self.parser.parse_args(

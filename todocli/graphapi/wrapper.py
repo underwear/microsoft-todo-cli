@@ -172,6 +172,7 @@ def create_task(
     due_datetime: datetime | None = None,
     important: bool = False,
     recurrence: dict | None = None,
+    note: str | None = None,
 ):
     _require_list(list_name, list_id)
 
@@ -191,6 +192,8 @@ def create_task(
         "importance": TaskImportance.HIGH if important else TaskImportance.NORMAL,
         "recurrence": recurrence,
     }
+    if note:
+        request_body["body"] = {"content": note, "contentType": "text"}
     session = get_oauth_session()
     response = session.post(endpoint, json=request_body)
     if response.ok:

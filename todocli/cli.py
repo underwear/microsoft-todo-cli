@@ -152,6 +152,7 @@ def new(args):
         due_datetime = parse_datetime(due_date_time_str)
 
     recurrence = parse_recurrence(args.recurrence)
+    note_content = getattr(args, "note", None)
 
     task_id = wrapper.create_task(
         name,
@@ -160,6 +161,7 @@ def new(args):
         due_datetime=due_datetime,
         important=args.important,
         recurrence=recurrence,
+        note=note_content,
     )
 
     steps = getattr(args, "step", []) or []
@@ -175,6 +177,8 @@ def new(args):
     msg = f"Created task '{name}' in '{task_list}'"
     if steps:
         msg += f" with {len(steps)} step(s)"
+    if note_content:
+        msg += " with note"
 
     result = {
         "action": "created",
@@ -185,6 +189,8 @@ def new(args):
     }
     if step_ids:
         result["step_ids"] = step_ids
+    if note_content:
+        result["note"] = note_content
 
     _output_result(args, result)
 
@@ -1199,6 +1205,12 @@ def setup_parser():
             action="append",
             default=[],
             help="Add a step (checklist item); can be repeated",
+        )
+        subparser.add_argument(
+            "-N",
+            "--note",
+            help="Add a note to the task",
+            metavar="TEXT",
         )
         _add_list_flag(subparser)
         _add_json_flag(subparser)
