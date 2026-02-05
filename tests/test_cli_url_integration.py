@@ -4,7 +4,7 @@ Real integration test for URL support in task names.
 This test actually creates tasks in Microsoft To-Do and verifies they exist.
 
 Prerequisites:
-- Valid API credentials configured in ~/.config/tod0/keys.yml
+- Valid API credentials configured in ~/.config/microsoft-todo-cli/keys.yml
 - Network connection
 
 Note: This test creates a 'test-list' and adds tasks to it.

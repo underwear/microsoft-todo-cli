@@ -37,10 +37,10 @@ After registration, you'll see the **Application (client) ID** on the overview p
 Create the config file:
 
 ```bash
-mkdir -p ~/.config/tod0
+mkdir -p ~/.config/microsoft-todo-cli
 ```
 
-Add your credentials to `~/.config/tod0/keys.yml`:
+Add your credentials to `~/.config/microsoft-todo-cli/keys.yml`:
 
 ```yaml
 client_id: 'your-application-client-id'
@@ -64,4 +64,4 @@ A browser window will open for Microsoft authentication. After logging in, you'r
 - Check that platform is set to `Web`
 
 **Token expired**
-- Delete `~/.config/tod0/token.pkl` and run any command to re-authenticate
+- Delete `~/.config/microsoft-todo-cli/token.json` and run any command to re-authenticate

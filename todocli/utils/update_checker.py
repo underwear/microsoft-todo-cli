@@ -10,7 +10,7 @@ PYPI_PACKAGE = "microsoft-todo-cli"
 
 def check():
     """Check for updates once per day, silently fail on errors."""
-    config_dir = "{}/.config/tod0".format(os.path.expanduser("~"))
+    config_dir = os.path.join(os.path.expanduser("~"), ".config", "microsoft-todo-cli")
     if not os.path.isdir(config_dir):
         os.makedirs(config_dir)
 
