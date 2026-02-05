@@ -658,3 +658,69 @@ def get_step_id(
         raise StepNotFoundByName(step_name, task_name)
     else:
         raise TypeError(f"step_name must be str or int, got {type(step_name).__name__}")
+
+
+# --- Note functions ---
+
+
+def update_task_note(
+    note_content: str,
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+    content_type: str = "text",
+):
+    """Update the note (body) of a task. Returns (task_id, task_title, note_content)."""
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    request_body = {
+        "body": {
+            "content": note_content,
+            "contentType": content_type,
+        }
+    }
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        body = data.get("body", {})
+        return task_id, data.get("title", ""), body.get("content", "")
+    response.raise_for_status()
+
+
+def clear_task_note(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Clear the note (body) of a task. Returns (task_id, task_title)."""
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}"
+    request_body = {
+        "body": {
+            "content": "",
+            "contentType": "text",
+        }
+    }
+    session = get_oauth_session()
+    response = session.patch(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return task_id, data.get("title", "")
+    response.raise_for_status()

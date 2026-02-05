@@ -103,6 +103,16 @@ todo uncomplete-step "Task" "Step"    # Uncheck
 todo rm-step "Task" 0                 # Remove by index
 ```
 
+### Notes
+
+```bash
+todo note "Task" "Note content"       # Add/update note
+todo show-note "Task"                 # Display note (alias: sn)
+todo clear-note "Task"                # Remove note (alias: cn)
+```
+
+Notes are text content attached to a task. Use `todo show "Task"` to see the note along with other task details.
+
 ### Lists
 
 ```bash
@@ -241,6 +251,7 @@ With `--json`: stdout contains only valid JSON on success. Errors go to stderr.
 | `t` | `tasks` | `d` | `rm` |
 | `n` | `new` | `newl` | `new-list` |
 | `c` | `complete` | `reopen` | `uncomplete` |
+| `sn` | `show-note` | `cn` | `clear-note` |
 
 ```bash
 todo t                  # = todo tasks

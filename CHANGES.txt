@@ -1,3 +1,9 @@
+v1.1.0, 2026-02-05
+  - Added note support: note, show-note, clear-note commands
+  - Added sn, cn aliases for show-note and clear-note
+  - Notes are now displayed in show command and JSON output
+  - Added note field to Task model
+
 v1.0.0, 2026-02-04
   - Fork from kiblee/tod0 with redesigned CLI
   - Removed interactive TUI, CLI-only

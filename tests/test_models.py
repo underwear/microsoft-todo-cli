@@ -230,6 +230,99 @@ class TestTaskModel(unittest.TestCase):
 
         self.assertIsNotNone(task.body_last_modified_datetime)
 
+    def test_task_with_note(self):
+        """Test task with note (body content)"""
+        api_response = {
+            "id": "task123",
+            "title": "Task with note",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+            "body": {
+                "content": "This is my note content",
+                "contentType": "text",
+            },
+        }
+        task = Task(api_response)
+
+        self.assertEqual(task.note, "This is my note content")
+        self.assertEqual(task.note_content_type, "text")
+
+    def test_task_without_note(self):
+        """Test task without note (no body field)"""
+        api_response = {
+            "id": "task123",
+            "title": "Task without note",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+        }
+        task = Task(api_response)
+
+        self.assertEqual(task.note, "")
+        self.assertEqual(task.note_content_type, "text")
+
+    def test_task_with_empty_note(self):
+        """Test task with empty note (body with empty content)"""
+        api_response = {
+            "id": "task123",
+            "title": "Task with empty note",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+            "body": {
+                "content": "",
+                "contentType": "text",
+            },
+        }
+        task = Task(api_response)
+
+        self.assertEqual(task.note, "")
+
+    def test_task_note_in_to_dict(self):
+        """Test that note is included in to_dict output"""
+        api_response = {
+            "id": "task123",
+            "title": "Task with note",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+            "body": {
+                "content": "Note for JSON",
+                "contentType": "text",
+            },
+        }
+        task = Task(api_response)
+        task_dict = task.to_dict()
+
+        self.assertIn("note", task_dict)
+        self.assertEqual(task_dict["note"], "Note for JSON")
+
+    def test_task_empty_note_in_to_dict(self):
+        """Test that empty note is None in to_dict output"""
+        api_response = {
+            "id": "task123",
+            "title": "Task without note",
+            "importance": "normal",
+            "status": "notStarted",
+            "createdDateTime": "2024-01-25T10:00:00.0000000Z",
+            "lastModifiedDateTime": "2024-01-25T11:00:00.0000000Z",
+            "isReminderOn": False,
+        }
+        task = Task(api_response)
+        task_dict = task.to_dict()
+
+        self.assertIn("note", task_dict)
+        self.assertIsNone(task_dict["note"])
+
 
 if __name__ == "__main__":
     unittest.main()

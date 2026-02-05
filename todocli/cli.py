@@ -837,6 +837,122 @@ def rm_step(args):
         print(result["message"])
 
 
+def note(args):
+    """Add or update a note on a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+    note_content = args.note_content
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title, content = wrapper.update_task_note(
+            note_content=note_content,
+            list_name=list_name,
+            task_id=task_id,
+        )
+        result = {
+            "action": "updated",
+            "id": returned_id,
+            "title": title,
+            "note": content,
+            "list": list_name,
+            "message": f"Updated note on task '{title}'",
+        }
+    else:
+        task_list, task_name = parse_task_path(
+            args.task_name, getattr(args, "list", None)
+        )
+        returned_id, title, content = wrapper.update_task_note(
+            note_content=note_content,
+            list_name=task_list,
+            task_name=try_parse_as_int(task_name),
+        )
+        result = {
+            "action": "updated",
+            "id": returned_id,
+            "title": title,
+            "note": content,
+            "list": task_list,
+            "message": f"Updated note on task '{title}' in '{task_list}'",
+        }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def show_note(args):
+    """Display the note of a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+
+    if task_id:
+        task_list = getattr(args, "list", None) or "Tasks"
+        task = wrapper.get_task(list_name=task_list, task_id=task_id)
+    else:
+        task_list, task_name = parse_task_path(
+            args.task_name, getattr(args, "list", None)
+        )
+        task = wrapper.get_task(
+            list_name=task_list, task_name=try_parse_as_int(task_name)
+        )
+
+    if use_json:
+        output = {
+            "id": task.id,
+            "title": task.title,
+            "note": task.note if task.note else None,
+            "list": task_list,
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if task.note:
+            print(task.note)
+        else:
+            print(f"No note on task '{task.title}'")
+
+
+def clear_note(args):
+    """Clear the note from a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title = wrapper.clear_task_note(
+            list_name=list_name,
+            task_id=task_id,
+        )
+        result = {
+            "action": "cleared",
+            "id": returned_id,
+            "title": title,
+            "list": list_name,
+            "message": f"Cleared note from task '{title}'",
+        }
+    else:
+        task_list, task_name = parse_task_path(
+            args.task_name, getattr(args, "list", None)
+        )
+        returned_id, title = wrapper.clear_task_note(
+            list_name=task_list,
+            task_name=try_parse_as_int(task_name),
+        )
+        result = {
+            "action": "cleared",
+            "id": returned_id,
+            "title": title,
+            "list": task_list,
+            "message": f"Cleared note from task '{title}' in '{task_list}'",
+        }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
 def show(args):
     """Display all details of a task."""
     task_id = getattr(args, "task_id", None)
@@ -875,6 +991,8 @@ def show(args):
         if task.reminder_datetime:
             print(f"Reminder:   {task.reminder_datetime.strftime('%Y-%m-%d %H:%M')}")
         print(f"Created:    {format_date(task.created_datetime, date_fmt)}")
+        if task.note:
+            print(f"Note:       {task.note}")
         if steps:
             print("Steps:")
             for i, step in enumerate(steps):
@@ -1271,6 +1389,39 @@ def setup_parser():
     _add_step_id_flag(subparser)
     _add_json_flag(subparser)
     subparser.set_defaults(func=rm_step)
+
+    # 'note' command - add or update a note on a task
+    subparser = subparsers.add_parser("note", help="Add or update a note on a task")
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument("note_content", help="Note content to add to the task")
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=note)
+
+    # 'show-note' command (primary) and 'sn' alias
+    for cmd_name in ["show-note", "sn"]:
+        subparser = subparsers.add_parser(
+            cmd_name,
+            help="Display the note of a task" if cmd_name == "show-note" else argparse.SUPPRESS,
+        )
+        subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+        _add_list_flag(subparser)
+        _add_id_flag(subparser)
+        _add_json_flag(subparser)
+        subparser.set_defaults(func=show_note)
+
+    # 'clear-note' command (primary) and 'cn' alias
+    for cmd_name in ["clear-note", "cn"]:
+        subparser = subparsers.add_parser(
+            cmd_name,
+            help="Clear the note from a task" if cmd_name == "clear-note" else argparse.SUPPRESS,
+        )
+        subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+        _add_list_flag(subparser)
+        _add_id_flag(subparser)
+        _add_json_flag(subparser)
+        subparser.set_defaults(func=clear_note)
 
     return parser
 

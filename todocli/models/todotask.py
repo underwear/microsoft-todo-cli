@@ -77,6 +77,14 @@ class Task:
         else:
             self.body_last_modified_datetime = None
 
+        # Note (body content)
+        if "body" in query_result and query_result["body"]:
+            self.note = query_result["body"].get("content", "")
+            self.note_content_type = query_result["body"].get("contentType", "text")
+        else:
+            self.note = ""
+            self.note_content_type = "text"
+
     def to_dict(self):
         """Convert task to dictionary for JSON serialization."""
         return {
@@ -85,6 +93,7 @@ class Task:
             "status": self.status.value,
             "importance": self.importance.value,
             "is_reminder_on": self.is_reminder_on,
+            "note": self.note if self.note else None,
             "created_datetime": (
                 self.created_datetime.isoformat() if self.created_datetime else None
             ),
