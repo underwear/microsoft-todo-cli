@@ -151,10 +151,13 @@ class TestJsonOutputLst(unittest.TestCase):
             output = mock_stdout.getvalue()
 
         data = json.loads(output)
-        self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]["title"], "Buy milk")
-        self.assertEqual(data[1]["title"], "Call mom")
-        self.assertEqual(data[1]["importance"], "high")
+        # New format: {list_id, list_name, tasks: [...]}
+        self.assertEqual(data["list_id"], "lid")
+        self.assertEqual(data["list_name"], "Tasks")
+        self.assertEqual(len(data["tasks"]), 2)
+        self.assertEqual(data["tasks"][0]["title"], "Buy milk")
+        self.assertEqual(data["tasks"][1]["title"], "Call mom")
+        self.assertEqual(data["tasks"][1]["importance"], "high")
 
     @patch("todocli.cli.wrapper")
     def test_lst_json_with_steps(self, mock_wrapper):
@@ -170,9 +173,10 @@ class TestJsonOutputLst(unittest.TestCase):
             output = mock_stdout.getvalue()
 
         data = json.loads(output)
-        self.assertEqual(len(data[0]["steps"]), 2)
-        self.assertEqual(data[0]["steps"][0]["display_name"], "Milk")
-        self.assertTrue(data[0]["steps"][1]["is_checked"])
+        # New format: {list_id, list_name, tasks: [...]}
+        self.assertEqual(len(data["tasks"][0]["steps"]), 2)
+        self.assertEqual(data["tasks"][0]["steps"][0]["display_name"], "Milk")
+        self.assertTrue(data["tasks"][0]["steps"][1]["is_checked"])
 
 
 class TestJsonOutputListSteps(unittest.TestCase):

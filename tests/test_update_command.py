@@ -61,6 +61,38 @@ class TestUpdateCLIParsing(unittest.TestCase):
         self.assertEqual(args.list, "Work")
         self.assertEqual(args.title, "x")
 
+    def test_update_mutually_exclusive_due(self):
+        """Test --due and --clear-due are mutually exclusive"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(["update", "t", "-d", "tomorrow", "--clear-due"])
+
+    def test_update_mutually_exclusive_reminder(self):
+        """Test --reminder and --clear-reminder are mutually exclusive"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(["update", "t", "-r", "9am", "--clear-reminder"])
+
+    def test_update_mutually_exclusive_important(self):
+        """Test --important and --no-important are mutually exclusive"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(["update", "t", "-I", "--no-important"])
+
+    def test_update_mutually_exclusive_recurrence(self):
+        """Test --recurrence and --clear-recurrence are mutually exclusive"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(["update", "t", "-R", "daily", "--clear-recurrence"])
+
+    def test_update_clear_due_alone(self):
+        """Test --clear-due works alone"""
+        args = self.parser.parse_args(["update", "t", "--clear-due"])
+        self.assertTrue(args.clear_due)
+        self.assertIsNone(args.due)
+
+    def test_update_no_important_alone(self):
+        """Test --no-important works alone"""
+        args = self.parser.parse_args(["update", "t", "--no-important"])
+        self.assertTrue(args.no_important)
+        self.assertFalse(args.important)
+
 
 class TestUpdateWrapper(unittest.TestCase):
     """Test update_task wrapper function with mocked API"""

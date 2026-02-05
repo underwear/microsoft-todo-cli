@@ -110,17 +110,21 @@ def lst(args):
         steps_map = {}
 
     if getattr(args, "json", False):
-        output = []
+        output = {
+            "list_id": list_id,
+            "list_name": list_name,
+            "tasks": [],
+        }
         for task in tasks:
             task_dict = task.to_dict()
             task_dict["steps"] = [s.to_dict() for s in steps_map.get(task.id, [])]
-            output.append(task_dict)
+            output["tasks"].append(task_dict)
         print(json.dumps(output, indent=2))
     else:
         for i, task in enumerate(tasks):
             if show_id:
-                short_id = task.id[:12] if len(task.id) > 12 else task.id
-                line = f"[{i}] {short_id}  {task.title}"
+                # Show full ID for scripting/agent use
+                line = f"[{i}] {task.id}  {task.title}"
             else:
                 line = f"[{i}]\t{task.title}"
             if _get_enum_value(task.importance) == "high":
@@ -472,9 +476,7 @@ def rm(args):
         for r in results:
             print(r["message"])
 
-    # Raise if all tasks were skipped (for non-zero exit code)
-    if skipped_count > 0 and skipped_count == len(results):
-        raise ValueError("All tasks were skipped (not confirmed)")
+    # Note: skipped tasks are not an error - user explicitly declined
 
 
 def update(args):
@@ -607,7 +609,7 @@ def new_step(args):
             "action": "created",
             "id": step_id,
             "name": step_name,
-            "task": str(task_name),
+            "task_name": str(task_name),
             "list": task_list,
             "message": f"Added step '{step_name}' to '{task_name}' in '{task_list}'",
         }
@@ -697,7 +699,7 @@ def complete_step(args):
             "action": "completed",
             "id": returned_step_id,
             "name": step_name,
-            "task": str(task_name),
+            "task_name": str(task_name),
             "list": task_list,
             "message": f"Completed step '{step_name}' in '{task_name}'",
         }
@@ -762,7 +764,7 @@ def uncomplete_step(args):
             "action": "uncompleted",
             "id": returned_step_id,
             "name": step_name,
-            "task": str(task_name),
+            "task_name": str(task_name),
             "list": task_list,
             "message": f"Uncompleted step '{step_name}' in '{task_name}'",
         }
@@ -824,7 +826,7 @@ def rm_step(args):
         result = {
             "action": "removed",
             "id": returned_step_id,
-            "task": str(task_name),
+            "task_name": str(task_name),
             "list": task_list,
             "message": f"Removed step from '{task_name}'",
         }
@@ -1178,26 +1180,39 @@ def setup_parser():
     subparser = subparsers.add_parser("update", help="Update an existing task")
     subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
     subparser.add_argument("--title", help="New title for the task")
-    subparser.add_argument(
+
+    # Mutually exclusive: --due vs --clear-due
+    due_group = subparser.add_mutually_exclusive_group()
+    due_group.add_argument("-d", "--due", help=helptext_due, metavar="DATE")
+    due_group.add_argument("--clear-due", action="store_true", help="Remove due date")
+
+    # Mutually exclusive: --reminder vs --clear-reminder
+    reminder_group = subparser.add_mutually_exclusive_group()
+    reminder_group.add_argument(
         "-r", "--reminder", help=helptext_reminder, metavar="DATETIME"
     )
-    subparser.add_argument("-d", "--due", help=helptext_due, metavar="DATE")
-    subparser.add_argument(
-        "-I", "--important", action="store_true", help="Mark as important"
-    )
-    subparser.add_argument(
-        "--no-important", action="store_true", help="Remove important flag"
-    )
-    subparser.add_argument(
-        "-R", "--recurrence", help=helptext_recurrence, metavar="PATTERN"
-    )
-    subparser.add_argument("--clear-due", action="store_true", help="Remove due date")
-    subparser.add_argument(
+    reminder_group.add_argument(
         "--clear-reminder", action="store_true", help="Remove reminder"
     )
-    subparser.add_argument(
+
+    # Mutually exclusive: --important vs --no-important
+    important_group = subparser.add_mutually_exclusive_group()
+    important_group.add_argument(
+        "-I", "--important", action="store_true", help="Mark as important"
+    )
+    important_group.add_argument(
+        "--no-important", action="store_true", help="Remove important flag"
+    )
+
+    # Mutually exclusive: --recurrence vs --clear-recurrence
+    recurrence_group = subparser.add_mutually_exclusive_group()
+    recurrence_group.add_argument(
+        "-R", "--recurrence", help=helptext_recurrence, metavar="PATTERN"
+    )
+    recurrence_group.add_argument(
         "--clear-recurrence", action="store_true", help="Remove recurrence"
     )
+
     _add_list_flag(subparser)
     _add_id_flag(subparser)
     _add_index_flag(subparser)

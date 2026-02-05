@@ -42,6 +42,8 @@ def _make_args(**kwargs):
         args.json = False
     if "task_id" not in kwargs:
         args.task_id = None
+    if "task_index" not in kwargs:
+        args.task_index = None
     if "step_id" not in kwargs:
         args.step_id = None
     return args
@@ -103,6 +105,27 @@ class TestConfirmationOutput(unittest.TestCase):
         with patch("sys.stdout", new_callable=StringIO) as out:
             rm(args)
             self.assertIn("Removed task", out.getvalue())
+
+    @patch("todocli.cli.confirm_action", return_value=False)
+    def test_rm_skipped_no_error(self, mock_confirm):
+        """Test rm prints 'Skipped' and does not raise when user declines"""
+        args = _make_args(task_name="Tasks/buy milk", yes=False)
+
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            # Should not raise
+            rm(args)
+            self.assertIn("Skipped", out.getvalue())
+
+    @patch("todocli.cli.confirm_action", return_value=False)
+    def test_rm_multiple_skipped_no_error(self, mock_confirm):
+        """Test rm with multiple tasks all skipped does not raise"""
+        args = _make_args(task_names=["Tasks/task1", "Tasks/task2"], yes=False)
+
+        with patch("sys.stdout", new_callable=StringIO) as out:
+            rm(args)
+            output = out.getvalue()
+            self.assertIn("Skipped", output)
+            self.assertEqual(output.count("Skipped"), 2)
 
     @patch("todocli.cli.wrapper")
     def test_update_prints_confirmation(self, mock_wrapper):
