@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import shlex
 import sys
 from datetime import datetime
@@ -183,6 +184,16 @@ def new(args):
             task_id=task_id,
         )
 
+    attach_file = getattr(args, "attach", None)
+    attachment_id = None
+    attachment_name = None
+    if attach_file:
+        attachment_id, attachment_name, _, _ = wrapper.create_attachment(
+            file_path=attach_file,
+            list_name=task_list,
+            task_id=task_id,
+        )
+
     msg = f"Created task '{name}' in '{task_list}'"
     if steps:
         msg += f" with {len(steps)} step(s)"
@@ -190,6 +201,8 @@ def new(args):
         msg += " with note"
     if link_url:
         msg += " with link"
+    if attach_file:
+        msg += f" with attachment '{attachment_name}'"
 
     result = {
         "action": "created",
@@ -205,6 +218,9 @@ def new(args):
     if link_id:
         result["link_id"] = link_id
         result["link_url"] = link_url
+    if attachment_id:
+        result["attachment_id"] = attachment_id
+        result["attachment_name"] = attachment_name
 
     _output_result(args, result)
 
@@ -1140,6 +1156,14 @@ def show(args):
     except Exception:
         task_links = []
 
+    # Fetch attachments
+    try:
+        task_attachments = wrapper.get_attachments(
+            list_name=task_list, task_id=task.id
+        )
+    except Exception:
+        task_attachments = []
+
     if getattr(args, "json", False):
         output = task.to_dict()
         output["list"] = task_list
@@ -1152,6 +1176,15 @@ def show(args):
                 "display_name": r.get("displayName", ""),
             }
             for r in task_links
+        ]
+        output["attachments"] = [
+            {
+                "id": a.get("id", ""),
+                "name": a.get("name", ""),
+                "content_type": a.get("contentType", ""),
+                "size": a.get("size", 0),
+            }
+            for a in task_attachments
         ]
         print(json.dumps(output, indent=2))
     else:
@@ -1185,6 +1218,223 @@ def show(args):
                     print(f"  [{i}] {app} - {url}")
                 else:
                     print(f"  [{i}] {url}")
+        if task_attachments:
+            print("Attachments:")
+            for i, a in enumerate(task_attachments):
+                att_name = a.get("name", "")
+                att_size = a.get("size", 0)
+                size_str = _format_file_size(att_size)
+                print(f"  [{i}] {att_name} ({size_str})")
+
+
+def attach(args):
+    """Attach a file to a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+    file_path = args.file_path
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        att_id, file_name, returned_id, title = wrapper.create_attachment(
+            file_path=file_path,
+            list_name=list_name,
+            task_id=task_id,
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        att_id, file_name, returned_id, title = wrapper.create_attachment(
+            file_path=file_path,
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+        )
+        list_name = task_list
+
+    result = {
+        "action": "attached",
+        "attachment_id": att_id,
+        "file_name": file_name,
+        "task_id": returned_id,
+        "title": title,
+        "list": list_name,
+        "message": f"Attached '{file_name}' to task '{title}'",
+    }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def attachments(args):
+    """List all attachments on a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        atts = wrapper.get_attachments(
+            list_name=list_name, task_id=task_id
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        atts = wrapper.get_attachments(
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+        )
+        list_name = task_list
+
+    if use_json:
+        output = {
+            "list": list_name,
+            "attachments": [
+                {
+                    "id": a.get("id", ""),
+                    "name": a.get("name", ""),
+                    "content_type": a.get("contentType", ""),
+                    "size": a.get("size", 0),
+                }
+                for a in atts
+            ],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if not atts:
+            print("No attachments")
+            return
+        for i, a in enumerate(atts):
+            name = a.get("name", "")
+            size = a.get("size", 0)
+            size_str = _format_file_size(size)
+            print(f"[{i}] {name} ({size_str})")
+
+
+def _format_file_size(size_bytes):
+    """Format file size in human-readable form."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    else:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def detach(args):
+    """Remove attachment(s) from a task."""
+    task_id = getattr(args, "task_id", None)
+    use_json = getattr(args, "json", False)
+    att_index = getattr(args, "att_index", None)
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        returned_id, title, count = wrapper.delete_attachment(
+            list_name=list_name,
+            task_id=task_id,
+            attachment_index=att_index,
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        returned_id, title, count = wrapper.delete_attachment(
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+            attachment_index=att_index,
+        )
+        list_name = task_list
+
+    if count == 0:
+        msg = f"No attachments to remove from task '{title}'"
+    elif count == 1:
+        msg = f"Removed 1 attachment from task '{title}'"
+    else:
+        msg = f"Removed {count} attachments from task '{title}'"
+
+    result = {
+        "action": "detached",
+        "task_id": returned_id,
+        "title": title,
+        "count": count,
+        "list": list_name,
+        "message": msg,
+    }
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(result["message"])
+
+
+def download(args):
+    """Download attachment(s) from a task to the current directory."""
+    import base64
+
+    task_id = getattr(args, "task_id", None)
+    att_index = getattr(args, "att_index", None)
+    output_dir = getattr(args, "output", None) or "."
+
+    if task_id:
+        list_name = getattr(args, "list", None) or "Tasks"
+        atts = wrapper.get_attachments(
+            list_name=list_name, task_id=task_id
+        )
+    else:
+        task_list, name = parse_task_path(args.task_name, getattr(args, "list", None))
+        atts = wrapper.get_attachments(
+            list_name=task_list,
+            task_name=try_parse_as_int(name),
+        )
+        list_name = task_list
+
+    if not atts:
+        print("No attachments to download")
+        return
+
+    if att_index is not None:
+        if att_index < 0 or att_index >= len(atts):
+            raise wrapper.AttachmentNotFoundByIndex(att_index, "task")
+        atts_to_download = [atts[att_index]]
+    else:
+        atts_to_download = atts
+
+    # Resolve list_id and task_id for fetching content
+    if task_id:
+        list_id = wrapper.get_list_id_by_name(list_name)
+    else:
+        list_id = wrapper.get_list_id_by_name(list_name)
+        task_id_resolved = wrapper.get_task_id_by_name(
+            list_name, try_parse_as_int(name)
+        )
+        task_id = task_id_resolved
+
+    downloaded = []
+    for att in atts_to_download:
+        att_data = wrapper.get_attachment(
+            attachment_id=att["id"],
+            list_id=list_id,
+            task_id=task_id,
+        )
+        content_bytes_b64 = att_data.get("contentBytes", "")
+        if not content_bytes_b64:
+            print(f"Warning: No content bytes for '{att.get('name', '')}'")
+            continue
+
+        file_bytes = base64.b64decode(content_bytes_b64)
+        file_name = att_data.get("name", att.get("name", "attachment"))
+        output_path = os.path.join(output_dir, file_name)
+
+        # Avoid overwriting
+        if os.path.exists(output_path):
+            base, ext = os.path.splitext(file_name)
+            counter = 1
+            while os.path.exists(output_path):
+                output_path = os.path.join(output_dir, f"{base}_{counter}{ext}")
+                counter += 1
+
+        with open(output_path, "wb") as f:
+            f.write(file_bytes)
+        downloaded.append(output_path)
+        print(f"Downloaded: {output_path}")
+
+    if not downloaded:
+        print("No files downloaded")
 
 
 def confirm_action(message, skip_confirm=False):
@@ -1398,6 +1648,12 @@ def setup_parser():
             "--link",
             help="Attach a link (URL) to the task at creation time",
             metavar="URL",
+        )
+        subparser.add_argument(
+            "-A",
+            "--attach",
+            help="Attach a file to the task at creation time",
+            metavar="FILE",
         )
         _add_list_flag(subparser)
         _add_json_flag(subparser)
@@ -1665,6 +1921,64 @@ def setup_parser():
     _add_json_flag(subparser)
     subparser.set_defaults(func=links)
 
+    # 'attach' command - attach a file to a task
+    subparser = subparsers.add_parser(
+        "attach", help="Attach a file to a task"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument("file_path", help="Path to the file to attach")
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=attach)
+
+    # 'attachments' command - list all attachments on a task
+    subparser = subparsers.add_parser(
+        "attachments", help="List all attachments on a task"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=attachments)
+
+    # 'detach' command - remove attachment(s) from a task
+    subparser = subparsers.add_parser(
+        "detach", help="Remove attachment(s) from a task"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument(
+        "--index",
+        dest="att_index",
+        type=int,
+        help="Remove only the attachment at this index (from 'attachments' output). Omit to remove all.",
+    )
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    _add_json_flag(subparser)
+    subparser.set_defaults(func=detach)
+
+    # 'download' command - download attachment(s) from a task
+    subparser = subparsers.add_parser(
+        "download", help="Download attachment(s) from a task"
+    )
+    subparser.add_argument("task_name", nargs="?", help=helptext_task_name)
+    subparser.add_argument(
+        "--index",
+        dest="att_index",
+        type=int,
+        help="Download only the attachment at this index (from 'attachments' output). Omit to download all.",
+    )
+    subparser.add_argument(
+        "-o",
+        "--output",
+        help="Output directory (default: current directory)",
+        metavar="DIR",
+    )
+    _add_list_flag(subparser)
+    _add_id_flag(subparser)
+    subparser.set_defaults(func=download)
+
     return parser
 
 
@@ -1710,6 +2024,15 @@ def main():
                 error_occurred = True
             except wrapper.LinkNotFoundByIndex as e:
                 _output_error("link_not_found", e.message)
+                error_occurred = True
+            except wrapper.AttachmentTooLarge as e:
+                _output_error("attachment_too_large", e.message)
+                error_occurred = True
+            except wrapper.AttachmentNotFoundByIndex as e:
+                _output_error("attachment_not_found", e.message)
+                error_occurred = True
+            except FileNotFoundError as e:
+                _output_error("file_not_found", str(e))
                 error_occurred = True
             except TimeExpressionNotRecognized as e:
                 _output_error("invalid_time", e.message)

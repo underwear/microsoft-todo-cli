@@ -48,6 +48,8 @@ def _make_args(**kwargs):
         args.step_id = None
     if "link" not in kwargs:
         args.link = None
+    if "attach" not in kwargs:
+        args.attach = None
     return args
 
 

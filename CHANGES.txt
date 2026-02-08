@@ -1,4 +1,9 @@
 v1.4.0, 2026-02-08
+  - Added file attachments: attach, attachments, detach, download commands
+  - Upload files to tasks (up to 25 MB) via Microsoft Graph API
+  - Added --attach flag to 'new' command for attaching a file at creation time
+  - Attachments displayed in 'show' command output (text and JSON)
+  - Direct upload for files <= 3 MB, upload session for 3-25 MB
   - Added deep links: link, unlink, links commands
   - Attach URLs (Jira, GitHub, Slack, etc.) to tasks as linked resources
   - Added --link flag to 'new' command for attaching a link at creation time

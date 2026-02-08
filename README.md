@@ -142,6 +142,44 @@ todo unlink --id "AAMk..." -l Tasks
 
 Deep links attach URLs to tasks using Microsoft To Do's linked resources API. In the To Do app, links appear as clickable "Open in {app}" buttons. Use this to connect tasks to Jira tickets, GitHub PRs, Slack threads, or any URL.
 
+### File Attachments
+
+```bash
+# Attach a file to a task
+todo attach "Task" /path/to/file.pdf
+todo attach "Task" /path/to/image.png -l Work
+
+# List attachments on a task
+todo attachments "Task"
+todo attachments "Task" --json
+
+# Remove all attachments from a task
+todo detach "Task"
+
+# Remove a specific attachment by index
+todo detach "Task" --index 0
+
+# Download all attachments from a task
+todo download "Task"
+
+# Download a specific attachment by index
+todo download "Task" --index 0
+
+# Download to a specific directory
+todo download "Task" -o /tmp/downloads
+
+# Create a task with an attachment
+todo new "Review report" --attach /path/to/report.pdf
+
+# Use --id for automation
+todo attach --id "AAMk..." -l Tasks /path/to/file.pdf
+todo attachments --id "AAMk..." -l Tasks --json
+todo detach --id "AAMk..." -l Tasks
+todo download --id "AAMk..." -l Tasks
+```
+
+File attachments use the Microsoft Graph API's todoTask attachments endpoint. Files up to 3 MB are uploaded directly; files between 3-25 MB use an upload session. The maximum attachment size is 25 MB. Attachments appear in the Microsoft To Do app UI.
+
 ### Lists
 
 ```bash

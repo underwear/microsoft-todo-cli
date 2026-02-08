@@ -3,7 +3,9 @@ For implementation details, refer to this source:
 https://docs.microsoft.com/en-us/graph/api/resources/todo-overview?view=graph-rest-1.0
 """
 
+import base64
 import json
+import os
 from datetime import datetime
 from typing import Union
 
@@ -851,6 +853,261 @@ def delete_linked_resource(
     for r in resources_to_delete:
         lr_id = r["id"]
         endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/linkedResources/{lr_id}"
+        response = session.delete(endpoint)
+        if response.ok:
+            count += 1
+        else:
+            response.raise_for_status()
+
+    return task_id, task.title, count
+
+
+# --- Attachments ---
+
+# Direct upload limit: 3 MB (3,145,728 bytes)
+ATTACHMENT_DIRECT_UPLOAD_LIMIT = 3 * 1024 * 1024
+
+# Maximum attachment size: 25 MB (26,214,400 bytes)
+ATTACHMENT_MAX_SIZE = 25 * 1024 * 1024
+
+# Upload session chunk size: 4 MB
+ATTACHMENT_CHUNK_SIZE = 4 * 1024 * 1024
+
+
+class AttachmentTooLarge(Exception):
+    def __init__(self, file_size, max_size=ATTACHMENT_MAX_SIZE):
+        self.file_size = file_size
+        self.max_size = max_size
+        size_mb = file_size / (1024 * 1024)
+        max_mb = max_size / (1024 * 1024)
+        self.message = (
+            f"File is too large ({size_mb:.1f} MB). "
+            f"Maximum attachment size is {max_mb:.0f} MB."
+        )
+        super().__init__(self.message)
+
+
+class AttachmentNotFoundByIndex(Exception):
+    def __init__(self, att_index, task_name):
+        self.message = (
+            f"Attachment with index '{att_index}' could not be found on task '{task_name}'"
+        )
+        super().__init__(self.message)
+
+
+def get_attachments(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Get all attachments for a task. Returns list of dicts."""
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments"
+    session = get_oauth_session()
+    response = session.get(endpoint)
+    if response.ok:
+        return json.loads(response.content.decode()).get("value", [])
+    response.raise_for_status()
+
+
+def get_attachment(
+    attachment_id: str,
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Get a single attachment with content bytes. Returns dict."""
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments/{attachment_id}"
+    session = get_oauth_session()
+    response = session.get(endpoint)
+    if response.ok:
+        return json.loads(response.content.decode())
+    response.raise_for_status()
+
+
+def create_attachment(
+    file_path: str,
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+):
+    """Attach a file to a task. Returns (attachment_id, file_name, task_id, task_title).
+
+    For files <= 3MB, uses direct upload with base64 contentBytes.
+    For files > 3MB (up to 25MB), uses upload session.
+    """
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    file_path = os.path.expanduser(file_path)
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    file_size = os.path.getsize(file_path)
+    file_name = os.path.basename(file_path)
+
+    if file_size > ATTACHMENT_MAX_SIZE:
+        raise AttachmentTooLarge(file_size)
+
+    if file_size == 0:
+        raise ValueError(f"Cannot attach empty file: {file_path}")
+
+    task = get_task(list_id=list_id, task_id=task_id)
+
+    if file_size <= ATTACHMENT_DIRECT_UPLOAD_LIMIT:
+        attachment_id = _create_attachment_direct(
+            file_path, file_name, file_size, list_id, task_id
+        )
+    else:
+        attachment_id = _create_attachment_upload_session(
+            file_path, file_name, file_size, list_id, task_id
+        )
+
+    return attachment_id, file_name, task_id, task.title
+
+
+def _create_attachment_direct(file_path, file_name, file_size, list_id, task_id):
+    """Upload a file attachment directly (< 3MB)."""
+    import mimetypes
+
+    content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+
+    with open(file_path, "rb") as f:
+        content_bytes = base64.b64encode(f.read()).decode("ascii")
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments"
+    request_body = {
+        "@odata.type": "#microsoft.graph.taskFileAttachment",
+        "name": file_name,
+        "contentBytes": content_bytes,
+        "contentType": content_type,
+        "size": file_size,
+    }
+    session = get_oauth_session()
+    response = session.post(endpoint, json=request_body)
+    if response.ok:
+        data = json.loads(response.content.decode())
+        return data.get("id", "")
+    response.raise_for_status()
+
+
+def _create_attachment_upload_session(
+    file_path, file_name, file_size, list_id, task_id
+):
+    """Upload a file attachment via upload session (3MB - 25MB)."""
+    # Step 1: Create upload session
+    endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments/createUploadSession"
+    request_body = {
+        "attachmentInfo": {
+            "attachmentType": "file",
+            "name": file_name,
+            "size": file_size,
+        }
+    }
+    session = get_oauth_session()
+    response = session.post(endpoint, json=request_body)
+    if not response.ok:
+        response.raise_for_status()
+
+    session_data = json.loads(response.content.decode())
+    upload_url = session_data["uploadUrl"]
+
+    # Step 2: Upload in chunks
+    with open(file_path, "rb") as f:
+        offset = 0
+        while offset < file_size:
+            chunk = f.read(ATTACHMENT_CHUNK_SIZE)
+            chunk_size = len(chunk)
+            end = offset + chunk_size - 1
+
+            headers = {
+                "Content-Length": str(chunk_size),
+                "Content-Range": f"bytes {offset}-{end}/{file_size}",
+                "Content-Type": "application/octet-stream",
+            }
+
+            response = session.put(upload_url, data=chunk, headers=headers)
+            if not response.ok:
+                response.raise_for_status()
+
+            offset += chunk_size
+
+    # The final PUT response should contain the attachment ID in Location header
+    # or response body
+    if response.status_code == 201:
+        # Try to extract from Location header
+        location = response.headers.get("Location", "")
+        if location:
+            # Location URL ends with /{attachmentId}
+            return location.rstrip("/").split("/")[-1]
+        # Try response body
+        try:
+            data = json.loads(response.content.decode())
+            return data.get("id", "")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return ""
+    return ""
+
+
+def delete_attachment(
+    list_name: str = None,
+    task_name: Union[str, int] = None,
+    list_id: str = None,
+    task_id: str = None,
+    attachment_index: int = None,
+):
+    """Delete attachment(s) from a task.
+
+    If attachment_index is provided, delete only that one.
+    If attachment_index is None, delete all attachments.
+    Returns (task_id, task_title, count_deleted).
+    """
+    _require_list(list_name, list_id)
+    _require_task(task_name, task_id)
+
+    if list_id is None:
+        list_id = get_list_id_by_name(list_name)
+    if task_id is None:
+        task_id = get_task_id_by_name(list_name, task_name)
+
+    task = get_task(list_id=list_id, task_id=task_id)
+    attachments = get_attachments(list_id=list_id, task_id=task_id)
+
+    if attachment_index is not None:
+        if attachment_index < 0 or attachment_index >= len(attachments):
+            raise AttachmentNotFoundByIndex(attachment_index, task.title)
+        attachments_to_delete = [attachments[attachment_index]]
+    else:
+        attachments_to_delete = attachments
+
+    session = get_oauth_session()
+    count = 0
+    for att in attachments_to_delete:
+        att_id = att["id"]
+        endpoint = f"{BASE_URL}/{list_id}/tasks/{task_id}/attachments/{att_id}"
         response = session.delete(endpoint)
         if response.ok:
             count += 1
