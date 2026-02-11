@@ -265,10 +265,10 @@ def complete_tasks(list_id, task_ids=None):
     if task_ids is None:
         task_ids = []
     body = {"requests": []}
-    for task_id in task_ids:
+    for j, task_id in enumerate(task_ids):
         body["requests"].append(
             {
-                "id": task_id,
+                "id": str(j),
                 "method": "PATCH",
                 "url": f"{BASE_RELATE_URL}/{list_id}/tasks/{task_id}",
                 "headers": {"Content-Type": "application/json"},
@@ -491,14 +491,17 @@ def get_checklist_items_batch(list_id: str, task_ids: list[str]):
     # Chunk into groups of BATCH_MAX_REQUESTS
     for i in range(0, len(task_ids), BATCH_MAX_REQUESTS):
         chunk = task_ids[i : i + BATCH_MAX_REQUESTS]
+        # Use numeric index as batch request id because the Graph API
+        # compares ids case-insensitively and base64 task ids can collide.
+        idx_to_task_id = {str(j): tid for j, tid in enumerate(chunk)}
         body = {
             "requests": [
                 {
-                    "id": task_id,
+                    "id": str(j),
                     "method": "GET",
                     "url": f"{BASE_RELATE_URL}/{list_id}/tasks/{task_id}/checklistItems",
                 }
-                for task_id in chunk
+                for j, task_id in enumerate(chunk)
             ]
         }
         response = session.post(BATCH_URL, json=body)
@@ -507,7 +510,7 @@ def get_checklist_items_batch(list_id: str, task_ids: list[str]):
 
         batch_response = json.loads(response.content.decode())
         for resp in batch_response.get("responses", []):
-            tid = resp["id"]
+            tid = idx_to_task_id[resp["id"]]
             if resp.get("status") == 200:
                 items = resp.get("body", {}).get("value", [])
                 result[tid] = [ChecklistItem(x) for x in items]
