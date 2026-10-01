@@ -84,21 +84,26 @@ class TestTaskFilters(unittest.TestCase):
         self.assertNotIn("No due date", output)
 
     @patch("todocli.cli.wrapper")
-    def test_filter_important(self, mock_wrapper):
+    def test_filter_important_is_delegated_to_the_api(self, mock_wrapper):
         mock_wrapper.get_list_id_by_name.return_value = "lid"
         mock_wrapper.get_tasks.return_value = [
             _make_task("Important task", task_id="t1", importance="high"),
-            _make_task("Normal task", task_id="t2", importance="normal"),
-            _make_task("Low priority", task_id="t3", importance="low"),
         ]
 
-        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+        with patch("sys.stdout", new_callable=StringIO):
             lst(_make_args(important=True))
-            output = mock_stdout.getvalue()
 
-        self.assertIn("Important task", output)
-        self.assertNotIn("Normal task", output)
-        self.assertNotIn("Low priority", output)
+        self.assertTrue(mock_wrapper.get_tasks.call_args.kwargs["important"])
+
+    @patch("todocli.cli.wrapper")
+    def test_important_not_requested_is_not_forwarded(self, mock_wrapper):
+        mock_wrapper.get_list_id_by_name.return_value = "lid"
+        mock_wrapper.get_tasks.return_value = []
+
+        with patch("sys.stdout", new_callable=StringIO):
+            lst(_make_args(important=False))
+
+        self.assertFalse(mock_wrapper.get_tasks.call_args.kwargs["important"])
 
     @patch("todocli.cli.wrapper")
     def test_no_filter_shows_all(self, mock_wrapper):

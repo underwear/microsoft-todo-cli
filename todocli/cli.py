@@ -91,6 +91,7 @@ def lst(args):
         list_id=list_id,
         include_completed=include_completed,
         only_completed=only_completed,
+        important=getattr(args, "important", False),
     )
 
     # Apply filters
@@ -101,9 +102,6 @@ def lst(args):
 
     if getattr(args, "overdue", False):
         tasks = [t for t in tasks if t.due_datetime and t.due_datetime.date() < today]
-
-    if getattr(args, "important", False):
-        tasks = [t for t in tasks if _get_enum_value(t.importance) == "high"]
 
     if not no_steps and tasks:
         steps_map = wrapper.get_checklist_items_batch(list_id, [t.id for t in tasks])

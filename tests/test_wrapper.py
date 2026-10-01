@@ -16,6 +16,7 @@ from todocli.graphapi.wrapper import (
     get_task_id_by_name,
     get_step_id,
     get_checklist_items_batch,
+    get_tasks,
 )
 
 
@@ -185,6 +186,45 @@ class TestGetChecklistItemsBatch(unittest.TestCase):
         self.assertEqual(len(result), 25)
         for tid in task_ids:
             self.assertIn(tid, result)
+
+
+class TestGetTasksFilter(unittest.TestCase):
+    """Test that get_tasks builds its $filter server-side."""
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def _request_url(self, mock_session, **kwargs):
+        resp = MagicMock()
+        resp.content = json.dumps({"value": []}).encode()
+        resp.status_code = 200
+        mock_session.return_value.get.return_value = resp
+        get_tasks(list_id="lid-1", **kwargs)
+        return mock_session.return_value.get.call_args[0][0]
+
+    def test_default_excludes_completed(self):
+        url = self._request_url()
+        self.assertIn("$filter=status ne 'completed'", url)
+        self.assertNotIn("importance", url)
+
+    def test_important_is_filtered_server_side(self):
+        url = self._request_url(important=True)
+        self.assertIn("importance eq 'high'", url)
+
+    def test_important_combines_with_status(self):
+        url = self._request_url(important=True)
+        self.assertIn("status ne 'completed' and importance eq 'high'", url)
+
+    def test_important_with_only_completed(self):
+        url = self._request_url(only_completed=True, important=True)
+        self.assertIn("status eq 'completed' and importance eq 'high'", url)
+
+    def test_important_with_include_completed_has_no_status_clause(self):
+        url = self._request_url(include_completed=True, important=True)
+        self.assertIn("$filter=importance eq 'high'", url)
+        self.assertNotIn("status", url)
+
+    def test_include_completed_alone_sends_no_filter(self):
+        url = self._request_url(include_completed=True)
+        self.assertNotIn("$filter", url)
 
 
 if __name__ == "__main__":

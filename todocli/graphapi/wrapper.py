@@ -133,6 +133,7 @@ def get_tasks(
     num_tasks: int = 100,
     include_completed: bool = False,
     only_completed: bool = False,
+    important: bool = False,
 ):
     """Fetch tasks from a list.
 
@@ -142,6 +143,7 @@ def get_tasks(
         num_tasks: Maximum number of tasks to return
         include_completed: If True, include completed tasks
         only_completed: If True, return only completed tasks
+        important: If True, filter server-side to importance eq 'high'
     """
     _require_list(list_name, list_id)
 
@@ -149,16 +151,17 @@ def get_tasks(
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
 
+    filters = []
     if only_completed:
-        endpoint = (
-            f"{BASE_URL}/{list_id}/tasks?$filter=status eq 'completed'&$top={num_tasks}"
-        )
-    elif include_completed:
-        endpoint = f"{BASE_URL}/{list_id}/tasks?$top={num_tasks}"
-    else:
-        endpoint = (
-            f"{BASE_URL}/{list_id}/tasks?$filter=status ne 'completed'&$top={num_tasks}"
-        )
+        filters.append("status eq 'completed'")
+    elif not include_completed:
+        filters.append("status ne 'completed'")
+    if important:
+        filters.append("importance eq 'high'")
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks?$top={num_tasks}"
+    if filters:
+        endpoint += "&$filter=" + " and ".join(filters)
 
     session = get_oauth_session()
     response = session.get(endpoint)
