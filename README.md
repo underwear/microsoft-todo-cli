@@ -67,6 +67,7 @@ todo tasks --overdue              # Past due
 todo tasks --important            # High priority
 todo tasks --completed            # Done tasks
 todo tasks --all                  # Everything
+todo tasks --top 5 --skip 5       # Paginate (OData $top/$skip)
 
 # Create
 todo new "Task name"              # Basic

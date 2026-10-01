@@ -130,18 +130,21 @@ def delete_list(list_name: str = None, list_id: str = None):
 def get_tasks(
     list_name: str = None,
     list_id: str = None,
-    num_tasks: int = 100,
     include_completed: bool = False,
     only_completed: bool = False,
+    top: int = None,
+    skip: int = None,
 ):
     """Fetch tasks from a list.
 
     Args:
         list_name: Name of the list
         list_id: ID of the list (alternative to list_name)
-        num_tasks: Maximum number of tasks to return
         include_completed: If True, include completed tasks
         only_completed: If True, return only completed tasks
+        top: Maximum number of tasks to return (OData $top). If None, all
+            pages are fetched by following @odata.nextLink.
+        skip: Number of tasks to skip (OData $skip)
     """
     _require_list(list_name, list_id)
 
@@ -149,21 +152,31 @@ def get_tasks(
     if list_id is None:
         list_id = get_list_id_by_name(list_name)
 
+    query = []
     if only_completed:
-        endpoint = (
-            f"{BASE_URL}/{list_id}/tasks?$filter=status eq 'completed'&$top={num_tasks}"
-        )
-    elif include_completed:
-        endpoint = f"{BASE_URL}/{list_id}/tasks?$top={num_tasks}"
-    else:
-        endpoint = (
-            f"{BASE_URL}/{list_id}/tasks?$filter=status ne 'completed'&$top={num_tasks}"
-        )
+        query.append("$filter=status eq 'completed'")
+    elif not include_completed:
+        query.append("$filter=status ne 'completed'")
+    if top is not None:
+        query.append(f"$top={top}")
+    if skip is not None:
+        query.append(f"$skip={skip}")
+
+    endpoint = f"{BASE_URL}/{list_id}/tasks"
+    if query:
+        endpoint += "?" + "&".join(query)
 
     session = get_oauth_session()
-    response = session.get(endpoint)
-    response_value = parse_response(response)
-    return [Task(x) for x in response_value]
+    tasks = []
+    while endpoint:
+        response = session.get(endpoint)
+        if not response.ok:
+            response.raise_for_status()
+        data = json.loads(response.content.decode())
+        tasks.extend(Task(x) for x in data["value"])
+        # With an explicit $top, return a single page only
+        endpoint = data.get("@odata.nextLink") if top is None else None
+    return tasks
 
 
 def create_task(

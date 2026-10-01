@@ -16,6 +16,7 @@ from todocli.graphapi.wrapper import (
     get_task_id_by_name,
     get_step_id,
     get_checklist_items_batch,
+    get_tasks,
 )
 
 
@@ -185,6 +186,69 @@ class TestGetChecklistItemsBatch(unittest.TestCase):
         self.assertEqual(len(result), 25)
         for tid in task_ids:
             self.assertIn(tid, result)
+
+
+def _task_json(task_id):
+    return {
+        "id": task_id,
+        "title": task_id,
+        "importance": "normal",
+        "status": "notStarted",
+        "createdDateTime": "2024-01-01T00:00:00.0000000Z",
+        "lastModifiedDateTime": "2024-01-01T00:00:00.0000000Z",
+        "isReminderOn": False,
+    }
+
+
+def _page(task_ids, next_link=None):
+    body = {"value": [_task_json(t) for t in task_ids]}
+    if next_link:
+        body["@odata.nextLink"] = next_link
+    resp = MagicMock()
+    resp.ok = True
+    resp.content = json.dumps(body).encode()
+    return resp
+
+
+class TestGetTasksPagination(unittest.TestCase):
+    """Test get_tasks $top/$skip and @odata.nextLink handling"""
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def test_follows_next_link_without_top(self, mock_session):
+        session = mock_session.return_value
+        session.get.side_effect = [
+            _page(["t1", "t2"], next_link="https://next/page2"),
+            _page(["t3"]),
+        ]
+
+        tasks = get_tasks(list_id="lid")
+
+        self.assertEqual([t.id for t in tasks], ["t1", "t2", "t3"])
+        first_url = session.get.call_args_list[0].args[0]
+        self.assertNotIn("$top", first_url)
+        self.assertIn("$filter=status ne 'completed'", first_url)
+        self.assertEqual(session.get.call_args_list[1].args[0], "https://next/page2")
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def test_top_and_skip_return_single_page(self, mock_session):
+        session = mock_session.return_value
+        session.get.return_value = _page(["t6", "t7"], next_link="https://next")
+
+        tasks = get_tasks(list_id="lid", top=2, skip=5, include_completed=True)
+
+        self.assertEqual([t.id for t in tasks], ["t6", "t7"])
+        session.get.assert_called_once_with(f"{BASE_URL}/lid/tasks?$top=2&$skip=5")
+
+    @patch("todocli.graphapi.wrapper.get_oauth_session")
+    def test_only_completed_with_top(self, mock_session):
+        session = mock_session.return_value
+        session.get.return_value = _page([])
+
+        get_tasks(list_id="lid", top=3, only_completed=True)
+
+        session.get.assert_called_once_with(
+            f"{BASE_URL}/lid/tasks?$filter=status eq 'completed'&$top=3"
+        )
 
 
 if __name__ == "__main__":

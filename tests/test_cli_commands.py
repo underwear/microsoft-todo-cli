@@ -30,6 +30,19 @@ class TestCLIArgumentParsing(unittest.TestCase):
         """Test 'lst' command defaults to 'Tasks'"""
         args = self.parser.parse_args(["lst"])
         self.assertEqual(args.list_name, "Tasks")
+        self.assertIsNone(args.top)
+        self.assertIsNone(args.skip)
+
+    def test_lst_command_top_and_skip(self):
+        """Test 'lst' command parses --top and --skip"""
+        args = self.parser.parse_args(["lst", "--top", "5", "--skip", "10"])
+        self.assertEqual(args.top, 5)
+        self.assertEqual(args.skip, 10)
+
+    def test_lst_command_rejects_negative_top(self):
+        """Test 'lst' command rejects negative --top"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(["lst", "--top", "-1"])
 
     def test_new_command_basic(self):
         """Test 'new' command with task name"""

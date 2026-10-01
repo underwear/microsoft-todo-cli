@@ -91,7 +91,10 @@ def lst(args):
         list_id=list_id,
         include_completed=include_completed,
         only_completed=only_completed,
+        top=getattr(args, "top", None),
+        skip=getattr(args, "skip", None),
     )
+    index_offset = getattr(args, "skip", None) or 0
 
     # Apply filters
     today = datetime.now().date()
@@ -122,7 +125,7 @@ def lst(args):
             output["tasks"].append(task_dict)
         print(json.dumps(output, indent=2))
     else:
-        for i, task in enumerate(tasks):
+        for i, task in enumerate(tasks, start=index_offset):
             if show_id:
                 # Show full ID for scripting/agent use
                 line = f"[{i}] {task.id}  {task.title}"
@@ -1472,6 +1475,16 @@ helptext_recurrence = (
 )
 
 
+def _non_negative_int(value):
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer: '{value}'")
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"must be non-negative: '{value}'")
+    return number
+
+
 def _add_json_flag(subparser):
     """Add --json flag to a subparser."""
     subparser.add_argument(
@@ -1599,6 +1612,16 @@ def setup_parser():
             "--completed",
             action="store_true",
             help="Show only completed tasks",
+        )
+        subparser.add_argument(
+            "--top",
+            type=_non_negative_int,
+            help="Maximum number of tasks to fetch (default: all)",
+        )
+        subparser.add_argument(
+            "--skip",
+            type=_non_negative_int,
+            help="Number of tasks to skip before fetching",
         )
         _add_json_flag(subparser)
         _add_date_format_flag(subparser)
